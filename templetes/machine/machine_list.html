@@ -1,0 +1,162 @@
+<!-- machine_list.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine Details</title>
+    {% load static %}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <!-- Header Section -->
+    <header class="d-flex justify-content-between align-items-center p-3 bg-dark text-white">
+        <h1>Machine Details</h1>
+        <div>
+            <a href="{% url 'machine_add' %}" class="btn btn-primary">Add New Machine</a>
+            <a href="{% url 'signout' %}" class="btn btn-light">Logout</a>
+        </div>
+    </header>
+
+    <div class="container mt-4">
+        <h3 class="mb-4">Hello, {{ user.username }}!</h3>
+
+        <!-- Machines List -->
+        <div>
+            {% for machine in machines %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ machine.name }}</h5>
+
+                        <!-- Machine Image -->
+                        {% if machine.image %}
+                            <img src="{{ machine.image.url }}" alt="{{ machine.name }}" class="img-thumbnail mb-3" style="max-width: 200px; cursor: pointer;" data-bs-toggle="modal" data-bs-target="#machineModal{{ machine.id }}">
+                        {% else %}
+                            <p>No Image Available</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Modal for Machine Details -->
+                    <div class="modal fade" id="machineModal{{ machine.id }}" tabindex="-1" aria-labelledby="machineModalLabel{{ machine.id }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="machineModalLabel{{ machine.id }}">{{ machine.name }} Details</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body" id="machineDetails{{ machine.id }}">
+                                    <!-- Machine Image -->
+                                    {% if machine.image %}
+                                        <h6>Machine Image</h6>
+                                        <img id="machineImage{{ machine.id }}" src="{{ machine.image.url }}" alt="{{ machine.name }}" class="img-fluid mb-3">
+                                    {% else %}
+                                        <p>No Image Available</p>
+                                    {% endif %}
+
+                                    <!-- Machine Details -->
+                                    <p><strong>Name:</strong> {{ machine.name }}</p>
+                                    <p><strong>Model:</strong> {{ machine.model }}</p>
+                                    <p><strong>Manufacturer:</strong> {{ machine.company }}</p>
+                                    <p><strong>Description:</strong> {{ machine.description }}</p>
+                                    
+                                    <!-- Machine Location -->
+                                    <p><strong>Latitude:</strong> {{ machine.latitude }}</p>
+                                    <p><strong>Longitude:</strong> {{ machine.longitude }}</p>
+
+                                    <!-- Machine QR Code -->
+                                    {% if machine.qr_code %}
+                                        <h6>Machine QR Code</h6>
+                                        <img id="qrCode{{ machine.id }}" src="{{ machine.qr_code.url }}" alt="QR Code" class="img-fluid">
+                                    {% else %}
+                                        <p>No QR Code Available</p>
+                                    {% endif %}
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-success" onclick="downloadPDF('{{ machine.id }}', '{{ machine.name }}')">Print</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Complaint Box -->
+                    <div class="card-body">
+                        <h6>Submit a Complaint</h6>
+                        <form method="POST">
+                            {% csrf_token %}
+                            <input type="hidden" name="machine_id" value="{{ machine.id }}">
+
+                            <div class="mb-3">
+                                <label for="complaints" class="form-label">Complaint</label>
+                                <textarea name="complaints" id="complaints" class="form-control" rows="4"></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-danger">Submit Complaint</button>
+                        </form>
+                    </div>
+
+                    <!-- Previous Complaints -->
+                    {% if machine.complaints %}
+                        <div class="card-footer">
+                            <h6>Previous Complaints:</h6>
+                            <p>{{ machine.complaints }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        async function downloadPDF(machineId, machineName) {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF();
+    
+            // Get Machine Details Container
+            const element = document.getElementById(`machineDetails${machineId}`);
+            const details = {
+                name: element.querySelector("p:nth-of-type(1)").innerText.split(": ")[1],
+                model: element.querySelector("p:nth-of-type(2)").innerText.split(": ")[1],
+                manufacturer: element.querySelector("p:nth-of-type(3)").innerText.split(": ")[1],
+                description: element.querySelector("p:nth-of-type(4)").innerText.split(": ")[1],
+                latitude: element.querySelector("p:nth-of-type(5)").innerText.split(": ")[1],
+                longitude: element.querySelector("p:nth-of-type(6)").innerText.split(": ")[1]
+            };
+    
+            // Add Machine Image to PDF
+            const machineImage = document.getElementById(`machineImage${machineId}`);
+            if (machineImage) {
+                const imgData = machineImage.src;
+                pdf.addImage(imgData, 'JPEG', 10, 10, 60, 60); // x, y, width, height
+            }
+    
+            // Add Details Text to PDF
+            let yPosition = 80; // Start position after the image
+            pdf.setFontSize(12);
+            pdf.text(`Name: ${details.name}`, 10, yPosition);
+            yPosition += 10;
+            pdf.text(`Model: ${details.model}`, 10, yPosition);
+            yPosition += 10;
+            pdf.text(`Manufacturer: ${details.manufacturer}`, 10, yPosition);
+            yPosition += 10;
+            pdf.text(`Description: ${details.description}`, 10, yPosition);
+            yPosition += 10;
+            pdf.text(`Latitude: ${details.latitude}`, 10, yPosition);
+            yPosition += 10;
+            pdf.text(`Longitude: ${details.longitude}`, 10, yPosition);
+    
+            // Add QR Code Image to PDF
+            const qrCode = document.getElementById(`qrCode${machineId}`);
+            if (qrCode) {
+                const qrImgData = qrCode.src;
+                pdf.addImage(qrImgData, 'JPEG', 10, yPosition + 10, 60, 60); // x, y, width, height
+            }
+    
+            // Save the PDF
+            pdf.save(`${machineName}.pdf`);
+        }
+    </script>
+    
+</body>
+</html>
